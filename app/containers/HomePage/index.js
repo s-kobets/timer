@@ -11,6 +11,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { compose } from 'redux';
 import { createStructuredSelector } from 'reselect';
+import { ThemeProvider } from 'styled-components';
 
 import injectReducer from 'utils/injectReducer';
 import injectSaga from 'utils/injectSaga';
@@ -34,6 +35,13 @@ import { makeSelectUsername } from './selectors';
 import reducer from './reducer';
 import saga from './saga';
 import mp3 from './finish.mp3';
+import {
+  WrapperTimer,
+  CliceTimer,
+  BarTimer,
+  FillTimer,
+  InputTime
+} from './styled';
 
 export class HomePage extends React.PureComponent {
   // eslint-disable-line react/prefer-stateless-function
@@ -47,7 +55,7 @@ export class HomePage extends React.PureComponent {
       contentTimers: [],
       timers: [],
       sliceTimer: [],
-      currentTimer: { value: '', spent: 0 },
+      currentTimer: { value: '', spent: 0, timer: 0 },
       circle: 0,
       view: false
     };
@@ -68,6 +76,22 @@ export class HomePage extends React.PureComponent {
     this.calledTimer();
   };
 
+  converInSecond = timer => {
+    let t = timer.split(':');
+    switch (t.length) {
+      case 3:
+        t = Number(t[0]) * 3600 + Number(t[1]) * 60 + Number(t[2]);
+        break;
+      case 2:
+        t = Number(t[0]) * 3600 + Number(t[1]) * 60;
+        break;
+      case 1:
+        t = Number(t[0]) * 3600;
+        break;
+    }
+    return t;
+  };
+
   calledTimer = changeTimer => {
     const { sliceTimer, timers, currentTimer } = this.state;
     let timer = currentTimer.value;
@@ -78,24 +102,15 @@ export class HomePage extends React.PureComponent {
       // this.setState({ timers: [timer, ...timers.slice(1)] });
     }
     if (timer !== '00:00:00') {
-      let t = timer.split(':');
-      switch (t.length) {
-        case 3:
-          t = Number(t[0]) * 3600 + Number(t[1]) * 60 + Number(t[2]);
-          break;
-        case 2:
-          t = Number(t[0]) * 3600 + Number(t[1]) * 60;
-          break;
-        case 1:
-          t = Number(t[0]) * 3600;
-          break;
-      }
+      let t = this.converInSecond(timer);
 
       t -= 1;
       const hour = Math.floor(t / 3600);
       const minut = Math.floor((t - hour * 3600) / 60);
       const second = t - (hour * 3600 + minut * 60);
       this.time = setTimeout(() => {
+        this.setState({ currentTimer: { ...currentTimer, timer: t } });
+
         return this.calledTimer(
           `${hour > 9 ? hour : `0${hour}`}:${minut > 9
             ? minut
@@ -108,7 +123,10 @@ export class HomePage extends React.PureComponent {
       this.setState(
         () => ({
           sliceTimer: sliceTimers,
-          currentTimer: { value: sliceTimers[0], spent: currentTimer.spent++ }
+          currentTimer: {
+            value: sliceTimers[0],
+            spent: currentTimer.spent++
+          }
         }),
         () => {
           clearTimeout(this.time);
@@ -121,7 +139,7 @@ export class HomePage extends React.PureComponent {
   };
 
   renderContentTimers = () => (
-    <Input type="time" step="1" onChange={this.handleChangeTime} />
+    <InputTime type="time" step="1" onChange={this.handleChangeTime} />
   );
 
   addContentTimer = () => {
@@ -148,11 +166,19 @@ export class HomePage extends React.PureComponent {
         }),
         () => {
           this.setState({
-            currentTimer: { ...currentTimer, value: timers[0] }
+            currentTimer: {
+              ...currentTimer,
+              value: timers[0],
+              timer: this.converInSecond(timers[0])
+            }
           });
         }
       );
     }
+  };
+
+  spin = (value, deg360) => {
+    return (deg360 - value) * 360 / deg360;
   };
 
   render() {
@@ -164,6 +190,16 @@ export class HomePage extends React.PureComponent {
     };
 
     const { view, currentTimer, timers, contentTimers } = this.state;
+
+    let spin = 0;
+    if (timers[0] && currentTimer.timer) {
+      spin = this.spin(
+        currentTimer.timer,
+        this.converInSecond(this.state.timers[0])
+      );
+    } else if (timers[0] && !currentTimer.timer) {
+      spin = 360;
+    }
 
     return (
       <article>
@@ -180,13 +216,22 @@ export class HomePage extends React.PureComponent {
               <source src={mp3} type="audio/mp3" />
             </audio>
             <Form>
-              <Input
-                type="time"
-                step="1"
-                data-index="0"
-                onChange={this.handleChangeTime}
-                value={timers[0]}
-              />
+              <ThemeProvider theme={{ spin }}>
+                <WrapperTimer>
+                  <InputTime
+                    type="time"
+                    step="1"
+                    data-index="0"
+                    onChange={this.handleChangeTime}
+                    value={timers[0]}
+                  />
+
+                  <CliceTimer>
+                    <BarTimer />
+                    <FillTimer />
+                  </CliceTimer>
+                </WrapperTimer>
+              </ThemeProvider>
 
               {React.Children.map(contentTimers, (item, index) =>
                 React.cloneElement(item, {
