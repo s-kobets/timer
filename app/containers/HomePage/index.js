@@ -52,7 +52,6 @@ export class HomePage extends React.PureComponent {
     super(props);
 
     this.state = {
-      contentTimers: [],
       timers: [],
       sliceTimer: [],
       currentTimer: { value: '', spent: 0, timer: 0 },
@@ -70,9 +69,15 @@ export class HomePage extends React.PureComponent {
     clearInterval(this.time);
   }
 
-  submit = e => {
+  handleSubmit = e => {
     e.preventDefault();
-    this.setState({ view: true });
+    this.setState({
+      view: true,
+      currentTimer: {
+        ...this.state.currentTimer,
+        spent: 0
+      }
+    });
     this.calledTimer();
   };
 
@@ -99,7 +104,6 @@ export class HomePage extends React.PureComponent {
     if (changeTimer) {
       timer = changeTimer;
       this.setState({ currentTimer: { ...currentTimer, value: changeTimer } });
-      // this.setState({ timers: [timer, ...timers.slice(1)] });
     }
     if (timer !== '00:00:00') {
       let t = this.converInSecond(timer);
@@ -110,7 +114,6 @@ export class HomePage extends React.PureComponent {
       const second = t - (hour * 3600 + minut * 60);
       this.time = setTimeout(() => {
         this.setState({ currentTimer: { ...currentTimer, timer: t } });
-
         return this.calledTimer(
           `${hour > 9 ? hour : `0${hour}`}:${minut > 9
             ? minut
@@ -119,13 +122,14 @@ export class HomePage extends React.PureComponent {
       }, 1000);
     } else {
       let sliceTimers = [...sliceTimer.slice(1)];
-
       this.setState(
         () => ({
           sliceTimer: sliceTimers,
           currentTimer: {
             value: sliceTimers[0],
-            spent: currentTimer.spent++
+            spent: sliceTimers[currentTimer.spent + 1]
+              ? (currentTimer.spent += 1)
+              : 0
           }
         }),
         () => {
@@ -138,47 +142,83 @@ export class HomePage extends React.PureComponent {
     }
   };
 
-  renderContentTimers = () => (
-    <InputTime type="time" step="1" onChange={this.handleChangeTime} />
-  );
-
-  addContentTimer = () => {
-    this.setState({
-      contentTimers: [...this.state.contentTimers, this.renderContentTimers()]
-    });
+  addTimerAndCurrentTimer = list => {
+    const { currentTimer } = this.state;
+    this.setState(
+      () => ({
+        timers: [...list],
+        sliceTimer: [...list]
+      }),
+      () => {
+        this.setState({
+          currentTimer: {
+            ...currentTimer,
+            value: this.state.timers[0],
+            timer: this.converInSecond(this.state.timers[0])
+          }
+        });
+      }
+    );
   };
 
   handleChangeTime = e => {
     e.preventDefault();
     const value = e.currentTarget.value;
     const index = e.currentTarget.dataset.index;
-    const { timers, currentTimer } = this.state;
+    const { timers } = this.state;
 
     let myTimer = timers;
-    myTimer.splice(index, 1, value);
-
     const t = value.split(':');
-    if (t.length === 3) {
-      this.setState(
-        () => ({
-          timers: [...myTimer],
-          sliceTimer: [...myTimer]
-        }),
-        () => {
-          this.setState({
-            currentTimer: {
-              ...currentTimer,
-              value: timers[0],
-              timer: this.converInSecond(timers[0])
-            }
-          });
-        }
+
+    switch (t.length) {
+      case 3:
+        myTimer.splice(index, 1, value);
+        break;
+      case 2:
+        myTimer.splice(index, 1, `${value}:00`);
+        break;
+      case 1:
+        myTimer.splice(index, 1, `${value}:00:00`);
+        break;
+      default:
+        myTimer.splice(index, 1, '00:00:00');
+    }
+    this.addTimerAndCurrentTimer(myTimer);
+  };
+
+  currentDeg = (value, deg360) => {
+    return (deg360 - value) * 360 / deg360;
+  };
+
+  spin = (timer, index) => {
+    const { currentTimer } = this.state;
+    if (timer && currentTimer.timer) {
+      return this.currentDeg(
+        currentTimer.timer,
+        this.converInSecond(this.state.timers[index])
       );
+    } else if (timer && !currentTimer.timer) {
+      return 360;
+    } else {
+      return 0;
     }
   };
 
-  spin = (value, deg360) => {
-    return (deg360 - value) * 360 / deg360;
+  addTimer = () => {
+    const { timers } = this.state;
+    this.addTimerAndCurrentTimer([...timers, '00:00:00']);
+  };
+
+  handleFocus = e => {
+    e.preventDefault();
+    // const index = e.currentTarget.dataset.index;
+
+    // this.setState({
+    //   currentTimer: {
+    //     ...this.state.currentTimer,
+    //     spent: Number(index)
+    //   }
+    // });
   };
 
   render() {
@@ -189,17 +229,7 @@ export class HomePage extends React.PureComponent {
       repos
     };
 
-    const { view, currentTimer, timers, contentTimers } = this.state;
-
-    let spin = 0;
-    if (timers[0] && currentTimer.timer) {
-      spin = this.spin(
-        currentTimer.timer,
-        this.converInSecond(this.state.timers[0])
-      );
-    } else if (timers[0] && !currentTimer.timer) {
-      spin = 360;
-    }
+    const { view, currentTimer, timers } = this.state;
 
     return (
       <article>
@@ -216,13 +246,18 @@ export class HomePage extends React.PureComponent {
               <source src={mp3} type="audio/mp3" />
             </audio>
             <Form>
-              <ThemeProvider theme={{ spin }}>
+              <ThemeProvider
+                theme={{
+                  spin: currentTimer.spent === 0 ? this.spin(timers[0], 0) : 0
+                }}
+              >
                 <WrapperTimer>
                   <InputTime
                     type="time"
                     step="1"
                     data-index="0"
                     onChange={this.handleChangeTime}
+                    onFocus={this.handleFocus}
                     value={timers[0]}
                   />
 
@@ -233,14 +268,38 @@ export class HomePage extends React.PureComponent {
                 </WrapperTimer>
               </ThemeProvider>
 
-              {React.Children.map(contentTimers, (item, index) =>
-                React.cloneElement(item, {
-                  'data-index': index + 1,
-                  value: timers[index + 1]
-                })
-              )}
-              <Button onClick={this.addContentTimer}>+</Button>
-              <Button type="submit" onClick={this.submit}>
+              {React.Children.map(timers.slice(1), (item, index) => {
+                const dataIndex = index + 1;
+                return (
+                  <ThemeProvider
+                    theme={{
+                      spin:
+                        currentTimer.spent === dataIndex
+                          ? this.spin(timers[dataIndex], dataIndex)
+                          : 0
+                    }}
+                  >
+                    <WrapperTimer>
+                      <InputTime
+                        type="time"
+                        step="1"
+                        data-index={dataIndex}
+                        onChange={this.handleChangeTime}
+                        onFocus={this.handleFocus}
+                        value={timers[dataIndex]}
+                      />
+
+                      <CliceTimer>
+                        <BarTimer />
+                        <FillTimer />
+                      </CliceTimer>
+                    </WrapperTimer>
+                  </ThemeProvider>
+                );
+              })}
+
+              <Button onClick={this.addTimer}>+</Button>
+              <Button type="submit" onClick={this.handleSubmit}>
                 Start
               </Button>
             </Form>

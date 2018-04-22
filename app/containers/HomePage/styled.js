@@ -2,24 +2,23 @@ import styled from 'styled-components';
 
 const WrapperTimer = styled.div`
   position: relative;
-  font-size: 120px;
+  font-size: 300px;
   width: 1em;
   height: 1em;
   border-radius: 50%;
-  margin: 0 0.1em 0.1em 0;
   background-color: #cccccc;
   box-sizing: content-box;
 
   &::after {
     position: absolute;
-    top: 0.08em;
-    left: 0.08em;
+    top: 0.025em;
+    left: 0.025em;
     display: block;
     content: ' ';
     border-radius: 50%;
     background-color: #f5f5f5;
-    width: 0.84em;
-    height: 0.84em;
+    width: 0.95em;
+    height: 0.95em;
     transition-property: all;
     transition-duration: 0.2s;
     transition-timing-function: ease-in;
@@ -37,9 +36,9 @@ const CliceTimer = styled.div`
 
 const BarTimer = styled.div`
   position: absolute;
-  border: 0.08em solid #307bbb;
-  width: 0.84em;
-  height: 0.84em;
+  border: 0.025em solid #307bbb;
+  width: 0.95em;
+  height: 0.95em;
   clip: rect(0em, 0.5em, 1em, 0em);
   border-radius: 50%;
   transform: rotate(10deg);
@@ -53,13 +52,11 @@ const FillTimer = BarTimer.extend`
 
 const InputTime = styled.input`
   position: absolute;
-  width: 100%;
+  width: calc(100% - 1em);
+  margin: 0 0.5em;
   z-index: 1;
-  left: 0;
-  top: 0;
-  width: 5em;
-  line-height: 5em;
-  font-size: 0.2em;
+  top: calc(50% - 0.85em);
+  font-size: 0.15em;
   color: black;
   display: block;
   text-align: center;
